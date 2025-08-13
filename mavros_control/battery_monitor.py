@@ -37,7 +37,7 @@ class BatteryMonitorNode(Node):
         # TODO: in the future check discharge curve for different current draws
         # TODO: use discharge graph to take in voltage and current and get what the voltage would be at 0A
         voltage_threshold = self.get_parameter('voltage_threshold').get_parameter_value().double_value
-        interpolated_volts = self.volts + 0.01924 * abs(self.current)
+        interpolated_volts = self.volts + (4 * 0.01924 * abs(self.current))
         
         if interpolated_volts < voltage_threshold:
             self.get_logger().warn(f"WARNING: BATTERY CAPACITY LOW: {self.voltage} V is too low at {self.current} A")
