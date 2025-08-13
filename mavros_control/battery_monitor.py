@@ -34,7 +34,7 @@ class BatteryMonitorNode(Node):
 
     def reading_callback(self):
 
-        # TODO: in the future check discharge curve for different current draws
+        # TODO: V/A is not a linear relationship, at higher current draws, this measure is more inaccurate
         # TODO: use discharge graph to take in voltage and current and get what the voltage would be at 0A
         voltage_threshold = self.get_parameter('voltage_threshold').get_parameter_value().double_value
         interpolated_volts = self.volts + (4 * 0.01924 * abs(self.current))
