@@ -46,6 +46,9 @@ class BatteryMonitorNode(Node):
 
     # Checks battery status via linear regression
     def check_battery_status(self):
+
+        # TODO: filter points based on clustering, remove outliers, make sure points aren't too old
+
         slope, intercept, r, p, std_err = stats.linregress(self.current_buffer, self.volt_buffer)
         self.get_logger().info(f"Calculated 0A Voltage: {intercept}, Calculated Volts/Current Slope: {slope}")
         if intercept < self.get_parameter('voltage_threshold').get_parameter_value().double_value:
