@@ -48,6 +48,9 @@ class BatteryMonitorNode(Node):
         self.delay_timer = self.create_timer(30, self.start_delay_timer)
         self.calc_timer = self.create_timer(60, self.check_battery_status)
 
+        # or visualization: make a graph for the readings every 30 seconds
+        self.graph_timer = self.create_timer(30, self.graph_readings)
+
     def start_delay_timer(self):
         self.get_logger().info("Starting battery status checks after 30 seconds delay.")
         self.delay_timer.cancel()
@@ -64,14 +67,14 @@ class BatteryMonitorNode(Node):
             self.current_buffer.pop(0)
 
             # check slope with buffered values, if slope is not within threshold, reject last reading
-            slope = stats.linregress(self.current_buffer, self.volt_buffer)[0]
+            try:
+                slope = stats.linregress(self.current_buffer, self.volt_buffer)[0]
+            except Exception as e:
+                self.get_logger().error(f"Error calculating linear regression for outlier detection: {e}")
+                return
+
             if slope < 0.22 or slope > 0.29:
-                # old code:
-                # self.current_buffer.pop()
-                # self.volt_buffer.pop()
 
-
-                # new code: remove the most extreme point to try and bring slope back into acceptable range
                 temp_current_buffer = self.current_buffer.copy()
                 temp_volt_buffer = self.volt_buffer.copy()
 
@@ -108,7 +111,12 @@ class BatteryMonitorNode(Node):
     def check_battery_status(self):
 
         if self.get_clock().now().to_msg().sec - self.starting_time > 35:
-            slope, intercept, r, p, std_err = stats.linregress(self.current_buffer, self.volt_buffer)
+            try:
+                slope, intercept, r, p, std_err = stats.linregress(self.current_buffer, self.volt_buffer)
+            except Exception as e:
+                self.get_logger().error(f"Error calculating linear regression: {e}")
+                return
+
             self.get_logger().info(f"Calculated 0A Voltage: {intercept}, Calculated Volts/Current Slope: {slope}, with standard error: {std_err}")
 
             if intercept < self.get_parameter('voltage_threshold').get_parameter_value().double_value:
@@ -122,8 +130,18 @@ class BatteryMonitorNode(Node):
                 log_writer.writerow([self.get_clock().now().to_msg().sec - self.starting_time, self.volts, self.current, slope, intercept, std_err])
 
             # plotting for visualization, not needed for final implementation
-            if self.get_clock().now().to_msg().sec - self.starting_time > 30:
+    
+    def graph_readings(self):
+        if self.get_clock().now().to_msg().sec - self.starting_time > 30:
                 # Save plots to the created directory
+
+                try:
+                    slope, intercept, r, p, std_err = stats.linregress(self.current_buffer, self.volt_buffer)
+                except Exception as e:
+                    self.get_logger().error(f"Error calculating linear regression for graphing: {e}")
+                    return
+
+                # TODO: make plots happen every 30 seconds apart from the actual calculation, and use to find more bags of different cases
                 time_stamp = self.get_clock().now().to_msg().sec - self.starting_time
                 plt.figure()
                 plt.scatter(self.current_buffer, self.volt_buffer, color='blue', label='Data Points')
