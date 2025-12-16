@@ -49,7 +49,7 @@ class BatteryMonitorNode(Node):
         self.calc_timer = self.create_timer(60, self.check_battery_status)
 
         # for visualization: make a graph for the readings every 30 seconds
-        self.graph_timer = self.create_timer(10, self.graph_readings)
+        # self.graph_timer = self.create_timer(10, self.graph_readings)
 
     def start_delay_timer(self):
         self.get_logger().info("Starting battery status checks after 30 seconds delay.")
@@ -121,7 +121,9 @@ class BatteryMonitorNode(Node):
 
             if intercept < self.get_parameter('voltage_threshold').get_parameter_value().double_value:
                 self.get_logger().warn(f"Battery voltage is below threshold: {intercept} < {self.get_parameter('voltage_threshold').get_parameter_value().double_value}")
+            
             self.intercepts.append(intercept)
+            
             self.time_buffer.append(self.get_clock().now().to_msg().sec - self.starting_time)
 
     
