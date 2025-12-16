@@ -48,8 +48,8 @@ class BatteryMonitorNode(Node):
         self.delay_timer = self.create_timer(30, self.start_delay_timer)
         self.calc_timer = self.create_timer(60, self.check_battery_status)
 
-        # or visualization: make a graph for the readings every 30 seconds
-        self.graph_timer = self.create_timer(30, self.graph_readings)
+        # for visualization: make a graph for the readings every 30 seconds
+        self.graph_timer = self.create_timer(10, self.graph_readings)
 
     def start_delay_timer(self):
         self.get_logger().info("Starting battery status checks after 30 seconds delay.")
@@ -70,7 +70,7 @@ class BatteryMonitorNode(Node):
             try:
                 slope = stats.linregress(self.current_buffer, self.volt_buffer)[0]
             except Exception as e:
-                self.get_logger().error(f"Error calculating linear regression for outlier detection: {e}")
+                # self.get_logger().error(f"Error calculating linear regression for outlier detection: {e}")
                 return
 
             if slope < 0.22 or slope > 0.29:
@@ -124,45 +124,43 @@ class BatteryMonitorNode(Node):
             self.intercepts.append(intercept)
             self.time_buffer.append(self.get_clock().now().to_msg().sec - self.starting_time)
 
-            # logging data to csv, not needed for final implementation
-            with open(os.path.join(self.graph_dir, 'battery_log.csv'), mode='a') as log_file:
-                log_writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                log_writer.writerow([self.get_clock().now().to_msg().sec - self.starting_time, self.volts, self.current, slope, intercept, std_err])
-
-            # plotting for visualization, not needed for final implementation
     
     def graph_readings(self):
         if self.get_clock().now().to_msg().sec - self.starting_time > 30:
                 # Save plots to the created directory
-
                 try:
                     slope, intercept, r, p, std_err = stats.linregress(self.current_buffer, self.volt_buffer)
+
+                     # logging data to csv, not needed for final implementation
+                    with open(os.path.join(self.graph_dir, 'battery_log.csv'), mode='a') as log_file:
+                        log_writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                        log_writer.writerow([self.get_clock().now().to_msg().sec - self.starting_time, self.volts, self.current, slope, intercept, std_err])
+
+                    # plotting for visualization, not needed for final implementation
+                    time_stamp = self.get_clock().now().to_msg().sec - self.starting_time
+                    plt.figure()
+                    plt.scatter(self.current_buffer, self.volt_buffer, color='blue', label='Data Points')
+                    plt.plot(self.current_buffer, [slope * x + intercept for x in self.current_buffer], color='red', label='Regression Line')
+                    plt.xlabel('Current (A)')
+                    plt.ylabel('Voltage (V)')
+                    plt.title('Battery Voltage vs Current with Regression Line')
+                    plt.legend()
+                    plt.tight_layout()
+                    plt.savefig(os.path.join(self.graph_dir, f'readings_at_time_{time_stamp}.png'))
+                    plt.close()
+
+                    plt.figure()
+                    plt.plot(self.time_buffer, self.intercepts, color='red', label='Intercepts')  # x = sample index
+                    plt.xlabel('Time (s)')
+                    plt.ylabel('Voltage (V)')
+                    plt.title('Battery Intercept (samples)')
+                    plt.legend()
+                    plt.tight_layout()
+                    plt.savefig(os.path.join(self.graph_dir, 'battery_voltage_plot.png'))
+                    plt.close()
                 except Exception as e:
                     self.get_logger().error(f"Error calculating linear regression for graphing: {e}")
                     return
-
-                # TODO: make plots happen every 30 seconds apart from the actual calculation, and use to find more bags of different cases
-                time_stamp = self.get_clock().now().to_msg().sec - self.starting_time
-                plt.figure()
-                plt.scatter(self.current_buffer, self.volt_buffer, color='blue', label='Data Points')
-                plt.plot(self.current_buffer, [slope * x + intercept for x in self.current_buffer], color='red', label='Regression Line')
-                plt.xlabel('Current (A)')
-                plt.ylabel('Voltage (V)')
-                plt.title('Battery Voltage vs Current with Regression Line')
-                plt.legend()
-                plt.tight_layout()
-                plt.savefig(os.path.join(self.graph_dir, f'readings_at_time_{time_stamp}.png'))
-                plt.close()
-
-                plt.figure()
-                plt.plot(self.time_buffer, self.intercepts, color='red', label='Intercepts')  # x = sample index
-                plt.xlabel('Time (s)')
-                plt.ylabel('Voltage (V)')
-                plt.title('Battery Intercept (samples)')
-                plt.legend()
-                plt.tight_layout()
-                plt.savefig(os.path.join(self.graph_dir, 'battery_voltage_plot.png'))
-                plt.close()
         
 
 def main(args=None):
