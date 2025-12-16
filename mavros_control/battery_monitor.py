@@ -32,11 +32,6 @@ class BatteryMonitorNode(Node):
 
         SENSOR_QOS = rclpy.qos.qos_profile_sensor_data
         
-        # creating csv file and writing header
-        with open(os.path.join(self.graph_dir, 'battery_log.csv'), mode='w') as log_file:
-            log_writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            log_writer.writerow(['Time (s)', 'Voltage (V)', 'Current (A)', 'Slope (V/A)', 'Intercept (V)', 'Std Error (V)'])
-
         # Declaring threshold parameters with default values
         description = ParameterDescriptor(description="Voltage threshold for battery warning")
         self.declare_parameter('voltage_threshold', 14.8, description)  # Default threshold, can be changed via ROS parameter
@@ -47,6 +42,11 @@ class BatteryMonitorNode(Node):
         
         self.delay_timer = self.create_timer(30, self.start_delay_timer)
         self.calc_timer = self.create_timer(60, self.check_battery_status)
+
+        # for visualization: creating csv file and writing header
+        # with open(os.path.join(self.graph_dir, 'battery_log.csv'), mode='w') as log_file:
+        #     log_writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        #     log_writer.writerow(['Time (s)', 'Voltage (V)', 'Current (A)', 'Slope (V/A)', 'Intercept (V)', 'Std Error (V)'])
 
         # for visualization: make a graph for the readings every 30 seconds
         # self.graph_timer = self.create_timer(10, self.graph_readings)
@@ -62,6 +62,9 @@ class BatteryMonitorNode(Node):
 
     # Puts voltage and current readings into buffers every 0.1 seconds
     def reading_callback(self):
+
+        '''buffers voltage and current readings, and performs outlier rejection'''
+
         if len(self.volt_buffer) and len(self.current_buffer) > 300:
             self.volt_buffer.pop(0)
             self.current_buffer.pop(0)
@@ -110,6 +113,8 @@ class BatteryMonitorNode(Node):
     # Checks battery status via linear regression
     def check_battery_status(self):
 
+        '''calculates linear regression of buffered voltage and current readings to determine battery health'''
+
         if self.get_clock().now().to_msg().sec - self.starting_time > 35:
             try:
                 slope, intercept, r, p, std_err = stats.linregress(self.current_buffer, self.volt_buffer)
@@ -128,6 +133,9 @@ class BatteryMonitorNode(Node):
 
     
     def graph_readings(self):
+
+        '''graphing for visualization purposes only, not needed for final implementation'''
+
         if self.get_clock().now().to_msg().sec - self.starting_time > 30:
                 # Save plots to the created directory
                 try:
