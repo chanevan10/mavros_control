@@ -4,6 +4,9 @@ from scipy import stats
 from rclpy.node import Node
 from rcl_interfaces.msg import ParameterDescriptor
 import matplotlib.pyplot as plt
+
+import subprocess
+
 import math
 
 # imports used to create directories to save plots
@@ -44,12 +47,12 @@ class BatteryMonitorNode(Node):
         self.calc_timer = self.create_timer(60, self.check_battery_status)
 
         # for visualization: creating csv file and writing header
-        # with open(os.path.join(self.graph_dir, 'battery_log.csv'), mode='w') as log_file:
-        #     log_writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        #     log_writer.writerow(['Time (s)', 'Voltage (V)', 'Current (A)', 'Slope (V/A)', 'Intercept (V)', 'Std Error (V)'])
+        with open(os.path.join(self.graph_dir, 'battery_log.csv'), mode='w') as log_file:
+            log_writer = csv.writer(log_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            log_writer.writerow(['Time (s)', 'Voltage (V)', 'Current (A)', 'Slope (V/A)', 'Intercept (V)', 'Std Error (V)'])
 
         # for visualization: make a graph for the readings every 30 seconds
-        # self.graph_timer = self.create_timer(10, self.graph_readings)
+        self.graph_timer = self.create_timer(10, self.graph_readings)
 
     def start_delay_timer(self):
         self.get_logger().info("Starting battery status checks after 30 seconds delay.")
@@ -125,6 +128,7 @@ class BatteryMonitorNode(Node):
             self.get_logger().info(f"Calculated 0A Voltage: {intercept}, Calculated Volts/Current Slope: {slope}, with standard error: {std_err}")
 
             if intercept < self.get_parameter('voltage_threshold').get_parameter_value().double_value:
+                subprocess.Popen(['notify-send', 'Battery Voltage Warning', f'Battery voltage is below threshold: {intercept} < {self.get_parameter("voltage_threshold").get_parameter_value().double_value}'], stderr=subprocess.DEVNULL)
                 self.get_logger().warn(f"Battery voltage is below threshold: {intercept} < {self.get_parameter('voltage_threshold').get_parameter_value().double_value}")
             
             self.intercepts.append(intercept)
