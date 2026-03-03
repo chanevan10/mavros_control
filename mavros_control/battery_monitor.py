@@ -1,12 +1,12 @@
+from tokenize import String
+
 import rclpy
 import csv
 from scipy import stats
 from rclpy.node import Node
 from rcl_interfaces.msg import ParameterDescriptor
 import matplotlib.pyplot as plt
-
 import subprocess
-
 import math
 
 # imports used to create directories to save plots
@@ -14,6 +14,7 @@ import os
 import shutil
 
 from sensor_msgs.msg import BatteryState
+from std_msgs.msg import Bool
 
 class BatteryMonitorNode(Node):
     def __init__(self):
@@ -42,6 +43,7 @@ class BatteryMonitorNode(Node):
 
         self.volt_subscriber = self.create_subscription(BatteryState, '/mavros/battery', self.battery_callback, SENSOR_QOS)
         self.reading_timer = self.create_timer(0.1, self.reading_callback)
+        self.warning_pub = self.create_publisher(Bool, '/battery_warning', 10)
         
         self.delay_timer = self.create_timer(30, self.start_delay_timer)
         self.calc_timer = self.create_timer(60, self.check_battery_status)
@@ -128,7 +130,12 @@ class BatteryMonitorNode(Node):
             self.get_logger().info(f"Calculated 0A Voltage: {intercept}, Calculated Volts/Current Slope: {slope}, with standard error: {std_err}")
 
             if intercept < self.get_parameter('voltage_threshold').get_parameter_value().double_value:
+                # notification works on tethered operation
                 subprocess.Popen(['notify-send', 'Battery Voltage Warning', f'Battery voltage is below threshold: {intercept} < {self.get_parameter("voltage_threshold").get_parameter_value().double_value}'], stderr=subprocess.DEVNULL)
+                
+                self.warning_pub.publish(Bool(data=True))
+                
+
                 self.get_logger().warn(f"Battery voltage is below threshold: {intercept} < {self.get_parameter('voltage_threshold').get_parameter_value().double_value}")
             
             self.intercepts.append(intercept)
